@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Clash: The Asset Match</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #1a1a2e; /* Deep space blue */
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            flex-direction: column;
+            user-select: none;
+        }
+        .game-container {
+            background-color: #0f0f1d;
+            border: 4px solid #00ffff; /* Neon Cyan Border */
+            border-radius: 10px;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+            max-width: 500px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border: 3px solid #00ffff;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .tile {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: transform 0.1s ease-out;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+        .tile:hover {
+            opacity: 0.9;
+        }
+        .selected {
+            border: 3px solid #ff00ff; /* Neon Magenta Selection */
+            transform: scale(1.1);
+        }
+        
+        .ui-panel {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+        }
+
+        .metric-box {
+            background-color: #1f1f3a;
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: 1px solid #00ffff;
+            text-align: center;
+            flex-grow: 1;
+            margin: 0 5px;
+        }
+
+        .metric-title {
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            color: #00ff99; /* Neon Green for positive values */
+        }
+        .debt-value {
+            color: #ff0000; /* Neon Red for debt */
+        }
+
+        /* Screens */
+        .hidden-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 15, 29, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+        }
+        .action-button {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            padding: 10px 30px;
+            border-radius: 8px;
+            transition: all 0.15s;
+            box-shadow: 0 6px #00aacc;
+            color: white;
+            background-color: #00ffff;
+        }
+        .action-button:active {
+            box-shadow: none;
+            transform: translateY(6px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container relative">
+        <header class="text-center py-4">
+            <h1 class="text-2xl font-bold text-cyan-400">CREDIT CLASH: THE ASSET MATCH</h1>
+        </header>
+
+        <div class="ui-panel">
+            <div class="metric-box">
+                <div class="metric-title">WEALTH (SCORE)</div>
+                <div class="metric-value" id="wealth-value">0</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">DEBT LEVEL</div>
+                <div class="metric-value debt-value" id="debt-value">0</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">MOVES LEFT</div>
+                <div class="metric-value" id="moves-value">25</div>
+            </div>
+        </div>
+
+        <div id="game-board">
+            <!-- Tiles will be generated here -->
+        </div>
+        
+        <!-- Start Screen -->
+        <div id="start-screen" class="hidden-screen">
+            <h2 class="text-3xl font-bold mb-4 text-cyan-400">BUILD YOUR PORTFOLIO!</h2>
+            <p class="text-lg text-gray-300 mb-6 max-w-sm">Swap adjacent tiles to match 3 or more:</p>
+            <ul class="text-left text-xl space-y-2 mb-8">
+                <li class="text-green-300">💰 **Cash,** 📈 **Stocks,** 💎 **Investment:** Match these to **increase Wealth.**</li>
+                <li class="text-red-300">💳 **Debt** and 💸 **Fees:** Match these to **reduce your Debt Level.**</li>
+            </ul>
+            <p class="text-lg text-yellow-300 mb-8">Run out of moves or let the Debt Level reach 100% to lose!</p>
+            <button id="start-button" onclick="startGame()" class="action-button">
+                START TRADING
+            </button>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="hidden-screen hidden">
+            <h2 class="text-4xl font-bold mb-4 text-red-400">DEBT OVERLOAD!</h2>
+            <p class="text-xl text-gray-300 mb-4">Your financial plan failed.</p>
+            <p class="text-3xl font-bold text-yellow-300 mb-8">FINAL WEALTH: <span id="final-wealth">0</span></p>
+            <button id="restart-button" onclick="location.reload()" class="action-button" style="background-color: #ff00ff; box-shadow: 0 6px #cc00cc;">
+                RESTART BUDGET
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Setup ---
+        const GRID_SIZE = 8;
+        const TILE_ASSETS = [
+            { id: 0, emoji: '💰', type: 'asset', points: 10 }, // Cash
+            { id: 1, emoji: '📈', type: 'asset', points: 25 }, // Stock
+            { id: 2, emoji: '💎', type: 'asset', points: 50 }, // High-Value Investment
+            { id: 3, emoji: '💳', type: 'liability', debtClear: 10 }, // Credit Card Debt
+            { id: 4, emoji: '💸', type: 'liability', debtClear: 20 }  // High Fees
+        ];
+        
+        let board = [];
+        let selectedTile = null;
+        let isProcessing = false;
+
+        // --- Game State ---
+        const GAME = {
+            wealth: 0,
+            debtLevel: 0, // Max 100
+            moves: 25,
+            isGameOver: false,
+        };
+
+        // --- DOM Elements ---
+        const dom = {
+            board: document.getElementById('game-board'),
+            wealthValue: document.getElementById('wealth-value'),
+            debtValue: document.getElementById('debt-value'),
+            movesValue: document.getElementById('moves-value'),
+            startScreen: document.getElementById('start-screen'),
+            gameOverScreen: document.getElementById('gameover-screen'),
+            finalWealth: document.getElementById('final-wealth'),
+        };
+
+        // --- Core Functions ---
+
+        function initializeBoard() {
+            board = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                board[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    board[r][c] = getRandomTileId(r, c);
+                }
+            }
+        }
+
+        function getRandomTileId(r, c) {
+            let id;
+            do {
+                id = Math.floor(Math.random() * TILE_ASSETS.length);
+            } while (isMatch(r, c, id)); // Prevent initial matches
+            return id;
+        }
+
+        // Check if placing a tile at (r, c) with a specific ID creates a match
+        function isMatch(r, c, id) {
+            // During initialization, we only check tiles that have already been placed (UP and LEFT)
+            
+            // Check horizontal match (LEFT)
+            // Need at least two tiles to the left (c-1, c-2)
+            if (c >= 2 && board[r][c - 1] === id && board[r][c - 2] === id) return true;
+            
+            // Check vertical match (UP)
+            // Need at least two tiles above (r-1, r-2)
+            if (r >= 2 && board[r - 1][c] === id && board[r - 2][c] === id) return true;
+            
+            return false;
+        }
+
+        function drawBoard() {
+            dom.board.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const tileDiv = document.createElement('div');
+                    tileDiv.className = 'tile';
+                    tileDiv.dataset.r = r;
+                    tileDiv.dataset.c = c;
+                    
+                    const tileId = board[r][c];
+
+                    // FIX: Check if tileId is valid (not -1, which marks it for removal)
+                    if (tileId !== -1) {
+                        tileDiv.innerHTML = TILE_ASSETS[tileId].emoji;
+                    } else {
+                        // If tile is marked for removal, render it as an empty space
+                        tileDiv.innerHTML = '';
+                    }
+
+                    tileDiv.addEventListener('click', handleTileClick);
+                    dom.board.appendChild(tileDiv);
+                }
+            }
+        }
+
+        function updateUI() {
+            dom.wealthValue.textContent = GAME.wealth.toLocaleString();
+            dom.debtValue.textContent = GAME.debtLevel;
+            dom.movesValue.textContent = GAME.moves;
+            
+            // Visual feedback for debt
+            const debtDiv = document.getElementById('debt-value');
+            if (GAME.debtLevel >= 80) {
+                debtDiv.classList.add('text-red-500');
+                debtDiv.classList.remove('text-yellow-500');
+            } else if (GAME.debtLevel >= 50) {
+                debtDiv.classList.add('text-yellow-500');
+                debtDiv.classList.remove('text-red-500');
+            } else {
+                debtDiv.classList.remove('text-red-500', 'text-yellow-500');
+            }
+        }
+
+        function handleTileClick(e) {
+            if (isProcessing || GAME.isGameOver) return;
+
+            const tileDiv = e.target.closest('.tile');
+            if (!tileDiv) return;
+
+            const r = parseInt(tileDiv.dataset.r);
+            const c = parseInt(tileDiv.dataset.c);
+
+            // 1. If no tile is selected, select this one
+            if (!selectedTile) {
+                selectedTile = { r, c, div: tileDiv };
+                tileDiv.classList.add('selected');
+            } else {
+                const prevR = selectedTile.r;
+                const prevC = selectedTile.c;
+
+                // 2. Check if the click is the previously selected tile (deselect)
+                if (prevR === r && prevC === c) {
+                    selectedTile.div.classList.remove('selected');
+                    selectedTile = null;
+                    return;
+                }
+
+                // 3. Check if the tiles are adjacent
+                const isAdjacent = (Math.abs(prevR - r) + Math.abs(prevC - c) === 1);
+
+                if (isAdjacent) {
+                    // Try to swap
+                    isProcessing = true;
+                    selectedTile.div.classList.remove('selected');
+                    
+                    // Animate swap and then process
+                    animateSwap(prevR, prevC, r, c).then(() => {
+                        processSwap(prevR, prevC, r, c);
+                    });
+                    
+                    selectedTile = null;
+
+                } else {
+                    // Select new tile
+                    selectedTile.div.classList.remove('selected');
+                    selectedTile = { r, c, div: tileDiv };
+                    tileDiv.classList.add('selected');
+                }
+            }
+        }
+
+        // Performs the actual board logic swap and match checking
+        async function processSwap(r1, c1, r2, c2) {
+            // Temporarily swap IDs in the backend array
+            [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+            
+            const matches = findMatches();
+
+            if (matches.length > 0) {
+                GAME.moves--;
+                // Handle matches, gravity, and refills recursively
+                await handleMatches(matches);
+                checkGameState();
+                updateUI();
+            } else {
+                // Invalid swap, swap back
+                // Animate swap back
+                await animateSwap(r1, c1, r2, c2, true);
+                // Swap back IDs
+                [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+            }
+            
+            // Re-render board state after all processing
+            drawBoard();
+            isProcessing = false;
+        }
+        
+        // Animates a tile swap on the grid
+        function animateSwap(r1, c1, r2, c2, swapBack = false) {
+            return new Promise(resolve => {
+                const div1 = dom.board.querySelector(`[data-r="${r1}"][data-c="${c1}"]`);
+                const div2 = dom.board.querySelector(`[data-r="${r2}"][data-c="${c2}"]`);
+                
+                if (!div1 || !div2) return resolve();
+
+                const col_size = dom.board.offsetWidth / GRID_SIZE;
+                
+                // Calculate movement needed
+                const dx = (c2 - c1) * col_size;
+                const dy = (r2 - r1) * col_size;
+
+                // Apply initial transform
+                div1.style.transform = `translate(${dx}px, ${dy}px)`;
+                div2.style.transform = `translate(${-dx}px, ${-dy}px)`;
+                div1.style.transition = div2.style.transition = 'transform 0.2s ease-in-out';
+
+                // After a short delay, clear the transform and resolve
+                setTimeout(() => {
+                    // If swapping back, we reverse the direction
+                    if (swapBack) {
+                        div1.style.transform = div2.style.transform = 'translate(0, 0)';
+                        div1.style.transition = div2.style.transition = 'transform 0.2s ease-in-out';
+                    } else {
+                        // For a successful match, we just wait for the animation to end
+                        div1.style.transition = div2.style.transition = 'none';
+                        div1.style.transform = div2.style.transform = 'none';
+                    }
+                    resolve();
+                }, swapBack ? 200 : 200); 
+            });
+        }
+
+
+        function findMatches() {
+            const matches = [];
+
+            // Helper to check for existing match in the list
+            const addMatch = (r, c) => {
+                if (!matches.some(m => m.r === r && m.c === c)) {
+                    matches.push({ r, c });
+                }
+            };
+
+            // Check horizontal matches
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE - 2; c++) {
+                    const id = board[r][c];
+                    if (board[r][c + 1] === id && board[r][c + 2] === id) {
+                        for (let k = 0; k < 3; k++) addMatch(r, c + k);
+                    }
+                }
+            }
+
+            // Check vertical matches
+            for (let c = 0; c < GRID_SIZE; c++) {
+                for (let r = 0; r < GRID_SIZE - 2; r++) {
+                    const id = board[r][c];
+                    if (board[r + 1][c] === id && board[r + 2][c] === id) {
+                        for (let k = 0; k < 3; k++) addMatch(r + k, c);
+                    }
+                }
+            }
+            return matches;
+        }
+
+        async function handleMatches(matches) {
+            // 1. Process score/debt clearance
+            let totalWealthGained = 0;
+            let totalDebtCleared = 0;
+            
+            matches.forEach(m => {
+                const asset = TILE_ASSETS[board[m.r][m.c]];
+                if (asset.type === 'asset') {
+                    totalWealthGained += asset.points;
+                } else if (asset.type === 'liability') {
+                    totalDebtCleared += asset.debtClear;
+                }
+            });
+
+            GAME.wealth += totalWealthGained;
+            GAME.debtLevel = Math.max(0, GAME.debtLevel - totalDebtCleared);
+            
+            if (totalWealthGained > 0) showToast(`+$${totalWealthGained} Wealth!`, 'asset');
+            if (totalDebtCleared > 0) showToast(`-${totalDebtCleared}% Debt!`, 'liability');
+
+            // 2. Mark tiles for removal (use -1 temporarily)
+            matches.forEach(m => {
+                board[m.r][m.c] = -1;
+            });
+            drawBoard(); // Instant visual removal
+
+            // 3. Apply gravity (shift tiles down)
+            await applyGravity();
+            
+            // 4. Refill top row
+            refillBoard();
+            
+            // 5. Check for chain reactions (new matches created by gravity/refill)
+            const newMatches = findMatches();
+            if (newMatches.length > 0) {
+                // If there are chain reactions, recurse
+                await handleMatches(newMatches);
+            }
+        }
+
+        function applyGravity() {
+            return new Promise(resolve => {
+                let moved = false;
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let writeRow = GRID_SIZE - 1;
+                    for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                        if (board[r][c] !== -1) {
+                            if (r !== writeRow) {
+                                board[writeRow][c] = board[r][c];
+                                board[r][c] = -1;
+                                moved = true;
+                            }
+                            writeRow--;
+                        }
+                    }
+                }
+                
+                // For match-3 gravity usually happens instantly in the backend model
+                drawBoard();
+                resolve();
+            });
+        }
+
+        function refillBoard() {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    if (board[r][c] === -1) {
+                        board[r][c] = Math.floor(Math.random() * TILE_ASSETS.length);
+                    }
+                }
+            }
+        }
+
+        function checkGameState() {
+            // 1. Check win/lose conditions
+            if (GAME.debtLevel >= 100 || GAME.moves <= 0) {
+                endGame();
+                return;
+            }
+            
+            // 2. Add passive debt over time
+            GAME.debtLevel = Math.min(100, GAME.debtLevel + 2); 
+        }
+        
+        // --- Game Control ---
+
+        function startGame() {
+            GAME.wealth = 0;
+            GAME.debtLevel = 0;
+            GAME.moves = 25;
+            GAME.isGameOver = false;
+            dom.startScreen.classList.add('hidden');
+            dom.gameOverScreen.classList.add('hidden');
+            initializeBoard();
+            drawBoard();
+            updateUI();
+        }
+
+        function endGame() {
+            GAME.isGameOver = true;
+            dom.finalWealth.textContent = GAME.wealth.toLocaleString();
+            dom.gameOverScreen.classList.remove('hidden');
+        }
+
+        // --- Toast Messages (Non-alert feedback) ---
+        let toastCounter = 0;
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            let bgColor = 'bg-blue-600';
+            let color = 'text-white';
+            if (type === 'asset') { bgColor = 'bg-green-600'; }
+            if (type === 'liability') { bgColor = 'bg-red-600'; }
+
+            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 p-2 rounded text-sm font-semibold ${color} ${bgColor} shadow-lg transition-opacity duration-500 opacity-0 z-50`;
+            toast.style.top = `${20 + (toastCounter * 50)}px`;
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+            toastCounter++;
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-0');
+                toast.classList.add('opacity-100');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                toast.addEventListener('transitionend', () => {
+                    toast.remove();
+                    toastCounter--;
+                });
+            }, 2500);
+        }
+
+    </script>
+</body>
+</html>
